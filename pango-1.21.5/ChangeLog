@@ -1,0 +1,892 @@
+2008-08-26  Behdad Esfahbod  <behdad@gnome.org>
+
+	* === Released 1.21.5 ===
+
+	* configure.in: Version 1.21.5
+
+	* NEWS: Updated.
+
+2008-08-22  Behdad Esfahbod  <behdad@gnome.org>
+
+	Bug 549003 – pango_layout_set_height(): layout should not be cleared
+	unless required
+
+	* pango/pango-layout-private.h:
+	* pango/pango-layout.c (pango_layout_init),
+	(pango_layout_set_height), (pango_layout_get_line_count),
+	(pango_layout_clear_lines), (add_line):
+	Don't invalidate layout if the new height does not force
+	ellipsization.
+
+2008-08-22  Richard Hult  <richard@imendio.com>
+
+	* pango/pangoatsui.c: (_pango_atsui_font_set_font_map): Fix build,
+	small typo.
+
+2008-08-22  Behdad Esfahbod  <behdad@gnome.org>
+
+	* pango/fonts.c (pango_font_metrics_ref),
+	(pango_font_metrics_unref):
+	* pango/pango-attributes.c (pango_attr_list_ref),
+	(pango_attr_list_unref):
+	* pango/pango-coverage.c (pango_coverage_ref),
+	(pango_coverage_unref):
+	* pango/pango-layout.c (pango_layout_line_ref),
+	(pango_layout_line_unref):
+	* pango/pangowin32-fontcache.c (cache_entry_unref),
+	(pango_win32_font_cache_loadw):
+	* pango/pangox-fontcache.c (cache_entry_unref),
+	(pango_x_font_cache_load):
+	Use atomic reference counting.
+
+	Pango may not be thread safe yet, but fixing it little by little
+	is easier than doing all in one round.
+
+2008-08-22  Behdad Esfahbod  <behdad@gnome.org>
+
+	Bug 143542 – PangoFT2Fontmap leak
+
+	* pango/fonts.c:
+	* pango/pangoatsui.c (pango_atsui_font_finalize),
+	(_pango_atsui_font_set_font_map):
+	* pango/pangocairo-font.c (_pango_cairo_font_get_metrics),
+	(_pango_cairo_font_private_get_hex_box_info):
+	* pango/pangocairo-win32font.c (_pango_cairo_win32_font_new):
+	* pango/pangofc-font.c (pango_fc_font_get_metrics):
+	* pango/pangofc-fontmap.c (pango_fc_font_map_add),
+	(_pango_fc_font_map_remove), (cleanup_font):
+	* pango/pangowin32-fontmap.c (pango_win32_font_neww),
+	(pango_win32_font_map_real_find_font):
+	* pango/pangowin32.c (pango_win32_font_finalize):
+	* pango/pangox-fontmap.c (pango_x_font_map_load_font):
+	* pango/pangox.c (pango_x_font_new), (pango_x_font_finalize):
+	Make the reference the font->fontmap reference weak.
+
+	The code for setting the reference must look like this:
+
+	  g_assert (font->fontmap == NULL);
+	  font->fontmap = (PangoFontMap *) fontmap;
+	  g_object_add_weak_pointer (G_OBJECT (font->fontmap), (gpointer *) (gpointer) &font->fontmap);
+
+	And releasing it like:
+
+	  g_assert (font->fontmap != NULL);
+	  g_object_remove_weak_pointer (G_OBJECT (font->fontmap), (gpointer *) (gpointer) &font->fontmap);
+	  font->fontmap = NULL;
+
+	I have converted all fontmaps.  The win32 and atsui ones can
+	use some simple testing.
+
+	The PangoFc fonts actually don't need the weakref as the fontmap
+	already provides a similar link by itself.
+
+2008-08-20  Murray Cumming  <murrayc@murrayc.com>
+
+	* pango/pango-language.c: pango_language_get_scripts(): Fix a 
+	tiny typo in the documentation.
+
+2008-08-20  Behdad Esfahbod  <behdad@gnome.org>
+
+	* pango/pango-language.c (pango_language_private_init),
+	(pango_language_get_private), (pango_language_from_string),
+	(find_best_lang_match), (find_best_lang_match_cached),
+	(pango_language_get_sample_string), (pango_language_get_scripts):
+	Cache language information to avoid bsearch()ing all the time.
+
+2008-08-20  Behdad Esfahbod  <behdad@gnome.org>
+
+	* pango/pango-language.c (find_best_lang_match),
+	(pango_language_get_sample_string), (pango_language_get_scripts),
+	(pango_script_get_sample_language):
+	Cleanup bsearching in language arrays.
+
+	Add some language codes for scripts.
+
+2008-08-20  Behdad Esfahbod  <behdad@gnome.org>
+
+	Bug 314094 – Get rid of poutpourri default sample string
+
+	* pango/pango-language-sample-table.h:
+	* pango/pango-language.c (pango_language_get_sample_string):
+	Use default language if provided language to get_sample_string()
+	is NULL.
+
+2008-08-19  Behdad Esfahbod  <behdad@gnome.org>
+
+	Bug 473806 – Improve pango_language_get_sample_string()
+
+	* docs/Makefile.am:
+	* pango/Makefile.am:
+	* pango/pango-language-sample-table.h:
+	* pango/pango-language.c (pango_language_get_sample_string):
+	Add language sample texts that are actually usable.  Compiled from
+	a variety of sources.  See pango-language-sample-table.h.
+
+2008-08-19  Behdad Esfahbod  <behdad@gnome.org>
+
+	* pango-view/GLASS.txt:
+	* pango/pango-ot-tag.c:
+	Various corrections.
+
+2008-08-18  Behdad Esfahbod  <behdad@gnome.org>
+
+	Bug 473805 – Add API enumerating scripts for a language
+
+	* docs/Makefile.am:
+	* docs/pango-sections.txt:
+	* docs/tmpl/scripts.sgml:
+	* docs/tmpl/text-attributes.sgml:
+	* docs/tmpl/utils.sgml:
+	* pango/pango-language.c (pango_language_get_scripts),
+	(pango_language_includes_script),
+	(pango_script_get_sample_language):
+	* pango/pango-language.h:
+	* pango/pango-script.c:
+	* pango/pango.def:
+	Add a minor new public API:
+
+		pango_language_get_scripts()
+	
+	This is what pango_language_includes_script() has been using
+	internally.  Previously one had to call that function over all
+	possible script values to determine which scripts a language
+	uses.  The new API makes that much easier.
+
+2008-08-18  Behdad Esfahbod  <behdad@gnome.org>
+
+	* pango/pango-language.h:
+	* pango/pango-script.h:
+	Fix cyclic header ordering and move pango_language_* to
+	pango-language.h
+
+2008-08-18  Behdad Esfahbod  <behdad@gnome.org>
+
+	Bug 470895 – Improve OpenType language tag list
+
+	* pango/pango-ot-tag.c: Update to OpenType 1.5 draft, intersected with
+	ISO639-3 of 2008/08/04.
+
+2008-08-12  Sven Herzberg  <sven@imendio.com>
+
+	Bug 547432 – Deprecation of pango_(backend)_font_map_create_context()
+	not clean
+	reviewed by: Behdad Esfahbod
+
+	* pango/pangocairo-fontmap.c,
+	* pango/pangofc-fontmap.c,
+	* pango/pangoft2-fontmap.c,
+	* pango/pangowin32.c,
+	* pango/pangox.c,
+	* pango/pangoxft-fontmap.c: use "Deprecated:" for deprecation messages;
+	fix the deprecation version number
+
+2008-08-11  Behdad Esfahbod  <behdad@gnome.org>
+
+	* === Released 1.21.4 ===
+
+	* configure.in: Version 1.21.4
+
+	* NEWS: Updated.
+
+2008-08-11  Behdad Esfahbod  <behdad@gnome.org>
+
+	Bug 547303 – pango_layout_get_cursor_pos crashes on certain text
+	buffers
+
+	* pango/pango-layout.c (pango_layout_get_cursor_pos): Handle cursor
+	position in the middle of a "\r\n" cluster.
+
+2008-08-06  Behdad Esfahbod  <behdad@gnome.org>
+
+	* pango/pangocairo-render.c (pango_cairo_renderer_draw_glyph_item):
+	Fix cluster iteration.
+
+2008-08-06  Behdad Esfahbod  <behdad@gnome.org>
+
+	* pango/pangocairo-render.c
+	(pango_cairo_renderer_show_text_glyphs),
+	(pango_cairo_renderer_draw_glyphs),
+	(pango_cairo_renderer_draw_glyph_item):
+	Implement draw_glyph_item using cairo_show_text_glyphs().
+
+	* configure.in: Require cairo >= 1.7.1
+
+2008-08-06  Behdad Esfahbod  <behdad@gnome.org>
+
+	 Fedora Bug 457883 - Sindhi Characters are not supported in
+	 pango [U+097B-U+097F]
+	 Patch from Pravin Satpute
+
+	* modules/indic/indic-ot-class-tables.c: Add [U+097B-U+097F].
+
+2008-08-06  Behdad Esfahbod  <behdad@gnome.org>
+
+	Bug 441654 – prefix fails when more than one base characters (as
+	conjuncts) present after a half form the next prefix renders
+	incorrectly
+	Patch from  Rahul Bhalerao
+
+	* modules/indic/mprefixups.c (indic_mprefixups_apply):
+	Do what I was told to do.
+
+2008-08-06  Behdad Esfahbod  <behdad@gnome.org>
+
+	Bug 546534 – pango_cairo_font_map_set_default(NULL) errs
+
+	* pango/pangocairo-fontmap.c (pango_cairo_font_map_set_default):
+	Allow NULL.
+
+2008-08-06  Behdad Esfahbod  <behdad@gnome.org>
+
+	Bug 431394 – Use pango_glyph_item_iter in more places
+
+	* pango/glyphstring.c (pango_glyph_string_get_logical_widths):
+	Use pango_glyph_item_iter for cluster iteration.
+
+2008-08-06  Behdad Esfahbod  <behdad@gnome.org>
+
+	Bug 377948 – Make pango_glyph_item_iter public
+
+	* pango/pango-glyph-item.c (pango_glyph_item_iter_copy),
+	(pango_glyph_item_iter_free), (pango_glyph_item_iter_get_type),
+	(pango_glyph_item_iter_next_cluster),
+	(pango_glyph_item_iter_prev_cluster),
+	(pango_glyph_item_iter_init_start),
+	(pango_glyph_item_iter_init_end), (pango_glyph_item_apply_attrs),
+	(pango_glyph_item_letter_space):
+	* pango/pango-glyph-item.h:
+	New public API, for iterating a PangoGlyphItem:
+
+		PangoGlyphItemIter
+		PANGO_TYPE_GLYPH_ITEM_ITER
+		pango_glyph_item_iter_copy()
+		pango_glyph_item_iter_free()
+		pango_glyph_item_iter_init_start()
+		pango_glyph_item_iter_init_end()
+		pango_glyph_item_iter_next_cluster()
+		pango_glyph_item_iter_prev_cluster()
+
+	* pango/pango.def:
+	* docs/tmpl/glyphs.sgml:
+	* docs/pango-sections.txt:
+	* pango/Makefile.am:
+	* pango/ellipsize.c (line_iter_next_cluster),
+	(line_iter_prev_cluster), (find_initial_span):
+	* pango/pango-layout.c (justify_words):
+	Update.
+
+	* pango/pango-glyph-item-private.h:
+	Remove.
+
+2008-08-05  Behdad Esfahbod  <behdad@gnome.org>
+
+	* pango/pango-context.c:
+	* pango/pango-context.h:
+	Make the following API public:
+
+		pango_context_new()
+		pango_context_set_font_map()
+
+	* pango/pango-fontmap.c (pango_font_map_create_context):
+	* pango/pango-fontmap.h:
+	New public API:
+
+		pango_font_map_create_context()
+
+	* pango/pangocairo-context.c (pango_cairo_create_context):
+	* pango/pangocairo-font.c (_pango_cairo_font_get_metrics),
+	(_pango_cairo_font_private_get_hex_box_info):
+	* pango/pangocairo-fontmap.c (pango_cairo_font_map_create_context):
+	* pango/pangocairo.h:
+	Deprecate pango_cairo_font_map_create_context().
+
+	* pango/pangofc-font.c (pango_fc_font_get_metrics):
+	* pango/pangofc-fontmap.c (pango_fc_font_map_create_context):
+	* pango/pangofc-fontmap.h:
+	Deprecate pango_fc_font_map_create_context().
+
+	* pango/pangoft2-fontmap.c (pango_ft2_font_map_create_context),
+	(pango_ft2_get_context):
+	* pango/pangoft2.h:
+	Deprecate pango_ft2_font_map_create_context().
+
+	* pango/pangowin32.c (pango_win32_get_context),
+	(pango_win32_font_get_metrics):
+	* pango/pangowin32.h:
+	Deprecate pango_win32_get_context().
+
+	* pango/pangoxft-font.c (_pango_xft_font_get_mini_font):
+	* pango/pangoxft-fontmap.c (pango_xft_get_context):
+	* pango/pangoxft.h:
+	Deprecate pango_xft_get_context().
+
+	* pango/pangox-fontmap.c (pango_x_font_map_for_display):
+	* pango/pangox.c (get_context_info), (pango_x_get_context),
+	(pango_x_context_set_funcs), (pango_x_render_layout_line):
+	Deprecate pango_x_get_context(), again.
+
+	* docs/pango-sections.txt:
+	* docs/tmpl/fonts.sgml:
+	* pango-view/viewer-pangocairo.c (pangocairo_view_get_context):
+	* pango-view/viewer-pangoft2.c (pangoft2_view_get_context):
+	* pango-view/viewer-pangox.c (pangox_view_get_context):
+	* pango-view/viewer-pangoxft.c (pangoxft_view_get_context):
+	* pango/check.defs:
+	* pango/pango.def:
+	Update.
+
+2008-07-30  Behdad Esfahbod  <behdad@gnome.org>
+
+	Bug 472625 – Add draw_glyph_item() to PangoRenderer
+
+	* docs/pango-sections.txt:
+	* docs/tmpl/pango-renderer.sgml:
+	* pango/pango-renderer.c:
+	* pango/pango-renderer.h:
+	New public API:
+
+		PangoRenderer::draw_glyph_item()
+		pango_renderer_draw_glyph_item()
+
+	Make layout and layout-line default renderers go through
+	draw_glyph_item(), which then by default falls back to
+	draw_glyphs().  The advantage in draw_glyph_item() is that it
+	has access to the text and cluster information.
+
+2008-07-30  Behdad Esfahbod  <behdad@gnome.org>
+
+	* docs/tmpl/text-attributes.sgml: Fix doc build warning.
+
+2008-07-19  Behdad Esfahbod  <behdad@gnome.org>
+
+	* pango/pango-layout.c (process_line): Justify lines broken by U+2028
+	LINE SEPARATOR.  Also affects return value of pango_layout_is_wrapped().
+
+2008-08-06  Tor Lillqvist  <tml@novell.com>
+
+	* pango/Makefile.am (install-def-files): Add a mkdir to be sure
+	the destination directory exists before copying files there.
+
+	* configure.in: On Windows set LIB_EXE_MACHINE_FLAG to X86 or X64
+	depending on host architecture.
+
+	* pango/Makefile.am: Use it when running lib.exe.
+
+2008-08-04  Tor Lillqvist  <tml@novell.com>
+
+	* pango/Makefile.am: Don't attempt to build the MS import
+	libraries for libpangoft2 unless HAVE_FREETYPE.
+
+2008-08-03  Tor Lillqvist  <tml@novell.com>
+
+	* pango/pango-bidi-type.c: Include <string.h> for strlen()
+	prototype.
+
+2008-06-29  Behdad Esfahbod  <behdad@gnome.org>
+
+	Bug 540592 – Crash in HB_GSUB_Apply_String with Linux-Libertine font
+
+	* pango/opentype/harfbuzz-gsub.c (GSUB_Do_String_Lookup): Fix reverse
+	loops for type 8 lookups.
+
+2008-06-26  Kristian Rietveld  <kris@imendio.com>
+
+	* configure.in: require glib trunk (for newer glib-mkenums).
+
+	* pango/Makefile.am: when generating pango-enum-types.h use
+	@ENUMPREFIX@ instead of hard coding the prefix.
+
+2008-06-24  Behdad Esfahbod  <behdad@gnome.org>
+
+	Bug 540036 – Doesn't link to fontconfig
+
+	* pango/Makefile.am: Explicitly include FREETYPE_LIBS for pangoxft.
+
+2008-06-23  Behdad Esfahbod  <behdad@gnome.org>
+
+	Bug 380094 – Fix split matra rendering bug for Kannada language
+
+	* modules/indic/indic-ot-class-tables.c: Fix Indic class for
+	U+0C8D and U+0C8E.
+
+2008-06-21  Johan Dahlin  <jdahlin@async.com.br>
+
+	* *.[ch]: Include "config.h" instead of <config.h>
+	Command used:
+	find -name \*.[ch]|xargs perl -p -i -e 's/^#include <config.h>/#include "config.h"/g'
+	Rubberstamped by Behdad
+
+2008-06-18  Behdad Esfahbod  <behdad@gnome.org>
+
+	Bug 536017 – Remove SF_MPRE_FIXUP from Sinhala script flags
+	Patch by Harshula
+
+	* modules/indic/indic-ot-class-tables.c: Just freakin' do it.
+	I have no idea if it's right or wrong.  Just that I've been
+	pestered enough to do it.  Time will tell...
+
+2008-06-16  Behdad Esfahbod  <behdad@gnome.org>
+
+	* === Released 1.21.3 ===
+
+	* configure.in: Version 1.21.3
+
+	* NEWS: Updated.
+
+2008-06-16  Behdad Esfahbod  <behdad@gnome.org>
+
+	Bug 538661 – Improve pango_cairo_context_update_context()
+
+	* pango/pangocairo-context.c (_pango_cairo_update_context):
+	Relayout only if merged options changed.
+
+2008-06-09  Behdad Esfahbod  <behdad@gnome.org>
+
+	Bug 536190 – Make pango_fc_font_map_clear_cache() public?
+
+	* pango/pangofc-fontmap.c:
+	* pango/pangofc-fontmap.h:
+	Make pango_fc_font_map_clear_cache() public.
+
+2008-06-09  Behdad Esfahbod  <behdad@gnome.org>
+
+	Bug 537258 – Add a pango_language_to_string() function
+
+	* docs/tmpl/text-attributes.sgml:
+	* pango/pango-language.c (pango_language_to_string):
+	* pango/pango-language.h:
+	* pango/pango.def:
+	Add a function implementation of pango_language_to_string().
+	The macro is still available.  To be removed in a cycle or two from
+	now. (bug #537466)
+
+2008-06-09  Behdad Esfahbod  <behdad@gnome.org>
+
+	Bug 537257 – pango_language_from_string(NULL) not happy
+
+	* pango/pango-language.c (pango_language_from_string):
+	Allow NULL.
+
+2008-06-09  Behdad Esfahbod  <behdad@gnome.org>
+
+	Bug 537186 – Make PangoFcFont pattern property readable
+
+	* pango/pangofc-font.c (pango_fc_font_class_init),
+	(pango_fc_font_get_property): Make it readable.
+
+2008-06-02  Behdad Esfahbod  <behdad@gnome.org>
+
+	* === Released 1.21.2 ===
+
+	* configure.in: Version 1.21.2
+
+	* NEWS: Updated.
+
+2008-05-28  Behdad Esfahbod  <behdad@gnome.org>
+
+	Bug 510299 – OpenType font variants are broken with ATSUI/Cairo
+
+	* pango/fonts.c (field_matches), (find_field): Ignore dashes when
+	matching fong description fields.
+
+2008-05-28  Tor Lillqvist  <tml@novell.com>
+
+	* pango/pangowin32-fontmap.c (synthesize_foreach)
+	(_pango_win32_font_map_init): Rework face synthesis once
+	again. Code is simpler now, and we don't needlessly synthesize
+	bold weights for fonts that have a real semi-bold weight, like
+	Lucida Sans. (The bold weight ended up looking like the semi-bold
+	anyway.)
+	(pango_win32_font_description_from_logfont)
+	(pango_win32_font_description_from_logfontw): Recognize the
+	semi-bold weight interval.
+
+	Map words that indicate weight and slant in the font name into the
+	corresponding Pango font description settings, and strip those
+	words from the family name. This maps for instance the DejaVu
+	Sans, DejaVu Sans Condensed and DejaVu Sans Light fonts into a
+	single DejaVu Sans family with styles Ultra-Light, Condensed,
+	Normal, Oblique Condensed, Oblique, Bold Condensed, Bold, Bold
+	Oblique Condensed, and Bold Oblique, which is nice.
+
+2008-05-27  Tor Lillqvist  <tml@novell.com>
+
+	* pango/pangowin32-fontmap.c (pango_win32_family_list_faces):
+	After the change to how the standard pseudo font families are set
+	up below, we don't need to prune out duplicate face names any
+	longer.
+
+2008-05-27  Tor Lillqvist  <tml@novell.com>
+
+	Bug 436363 - Bold and Bold Italic style of MS-Mincho font are not
+	listed in GtkFontSelection
+
+	* pango/pangowin32-fontmap.c: Synthesize also Bold and Bold Italic
+	(or Oblique) faces when feasible. Don't synthesize these for
+	decorative or script fonts. Kill the magic code snippet mentioned
+	below. Instead, explicitly create font families for the standard
+	pseudo fonts that correspond to the first existing font of the
+	corresponding built-in alias list. Use the face style name Oblique
+	for slanted sans and monospace fonts, not Italic.
+
+2008-05-27  Tor Lillqvist  <tml@novell.com>
+
+	* pango/pangowin32-fontmap.c (pango_win32_family_list_faces):
+	Prune duplicated face names. Makes the GTK+ font selector look a
+	bit saner for the "sans", "serif" and "monospace" standard pseudo
+	font families with just one instance of each style.
+
+	That we get duplicated styles in the first place is because of the
+	magic code snippet in pango_win32_insert_font() that sets up the
+	list of faces for the standard pseudo font families. I don't like
+	that code but without it these families wouldn't currently show up
+	in the font selector at all.
+
+	A problem is still that the magic code blindly adds all random
+	fonts that claim to be FF_ROMAN to the list of faces for the
+	"serif" family, etc. I think it would be preferrable to do it only
+	for well-known sensible fonts. That would be those that are listed
+	in builtin_aliases in pango-utils.c, I guess.
+
+2008-05-26  Tor Lillqvist  <tml@novell.com>
+
+	* pango/pangowin32-private.h
+	* pango/pangowin32-fontmap.c: Drop the PangoWin32FontMap::n_fonts
+	field which wasn't really used for anything. Rename the field
+	PangoWin32Family::font_entries to faces. Rename some local
+	variables to be more consistently named.
+
+2008-05-26  Tor Lillqvist  <tml@novell.com>
+
+	* pango/pangowin32.c
+	* pango/pangowin32-fontmap.c: Some whitespace cleanup. 
+
+2008-05-26  Tor Lillqvist  <tml@novell.com>
+
+	* pango/pangowin32-private.h
+	* pango/pangowin32-fontmap.c: Drop the PangoWin32SizeInfo struct
+	and the hash table mapping from the relevant part of a LOGFONTW
+	struct to a list of PangoWin32SizeInfos in PangoWin32FontMap. It
+	seems that each list was always of length one anyway, so instead
+	just map directly to each such single list member, also a LOGFONTW
+	struct. Actually I wonder whether this map is needed at all, will
+	have to experiment.
+
+2008-05-23  Tor Lillqvist  <tml@novell.com>
+
+	* pango/pango-utils.c: Revert the addition of the alias
+	"sansserif". The correct name is "sans-serif", and "sans" should
+	also be accepted. If something uses "sansserif" it is wrong. (I
+	saw it in some sample svg files in librsvg.)
+
+2008-05-20  Tor Lillqvist  <tml@novell.com>
+
+	* pango/pango-utils.c: Add alias "sansserif" to the builtin
+	aliases on Win32. Same contents as "sans" and "sans-serif".
+
+2008-05-20  Tor Lillqvist  <tml@novell.com>
+
+	Bug 523193 – Vista Hebrew, CJK fonts to builtin win32 pango aliases
+
+	Patch by Daniel Atallah.
+	
+	* pango/pango-utils.c: Add fonts from Vista to the builtin
+	aliases. Also add Lucida Sans Unicode and Lucida Console.
+
+2008-05-13  Behdad Esfahbod  <behdad@gnome.org>
+
+	* === Released 1.21.1 ===
+
+	* configure.in: Version 1.21.1
+
+	* NEWS: Updated.
+
+2008-05-03  Behdad Esfahbod  <behdad@gnome.org>
+
+	Bug 531242 – Leak when calculating win32 font coverage
+	Patch from Daniel Atallah
+
+	* pango/pangowin32.c (pango_win32_font_calc_coverage): Plug leak.
+
+2008-04-30  Behdad Esfahbod  <behdad@gnome.org>
+
+	Bug 530757 – Docs build breaks because of hash sign in URL in <ulink...>
+
+	* docs/tmpl/main.sgml: Make it build.
+
+2008-04-30  Behdad Esfahbod  <behdad@gnome.org>
+
+	Bug 530685 – Pango no longer using cairo as a backend as of pango 1.19.4
+
+	* configure.in: Be more verbose about cairo font backends found.
+
+2008-04-28  Behdad Esfahbod  <behdad@gnome.org>
+
+	* pango-view/viewer-main.c (main): Wait for convert(1) to finish.
+	Patch by Jamie Guinan.
+
+2008-04-24  Behdad Esfahbod  <behdad@gnome.org>
+
+	Part of Bug 97545 – Make pango_default_break follow Unicode TR #29
+
+	* docs/tmpl/main.sgml:
+	* pango/break.c (pango_default_break):
+	* pango/pango-break.h:
+	* tests/testboundaries_ucd.c (main):
+	Add new PangoLogAttr member is_word_boundary, that implements UAX#29's
+	Word Boundaries semantics.  Test fully passes for it.
+
+2008-04-24  Behdad Esfahbod  <behdad@gnome.org>
+
+	Part of Bug 97545 – Make pango_default_break follow Unicode TR #29
+	Patch from Noah Levitt
+
+	* tests/Makefile.am:
+	* tests/runtests.sh.in:
+	* tests/testboundaries_ucd.c (count_attrs), (parse_line),
+	(attrs_equal), (make_test_string), (do_test), (main):
+	Add test driver for UAX#14 and UAX#29 test data from Unicode Character
+	Databse.  Just drop the following four files in pango/tests for it to
+	use them:
+
+		GraphemeBreakTest.txt
+		LineBreakTest.txt
+		SentenceBreakTest.txt
+		WordBreakTest.txt
+
+2008-04-24  Behdad Esfahbod  <behdad@gnome.org>
+
+	Part of Bug 97545 – Make pango_default_break follow Unicode TR #29
+
+	* pango/break.c (pango_default_break): Make Grapheme Boundary code
+	exactly follow UAX#29 of Unicode 5.1.0
+
+2008-04-24  Behdad Esfahbod  <behdad@gnome.org>
+
+	* pango/break.c (pango_default_break): Update GraphemeBoundary to
+	Unicode 5.1.0.  Pretty close now.  Passes the TR14 test.
+
+2008-04-24  Behdad Esfahbod  <behdad@gnome.org>
+
+	* pango/break.c (pango_default_break): Allow line break at the end of
+	string.  UAX#14 rule LB3 says "Always break at the end of text."
+	With this test, Pango passes the LineBreakTest.txt, sans the bug in
+	the test file that I've already reported to unicoRe.
+
+2008-04-21  Behdad Esfahbod  <behdad@gnome.org>
+
+	* === Released 1.21.0 ===
+
+	* configure.in: Version 1.21.0
+
+	* NEWS: Updated.
+
+2008-04-21  Behdad Esfahbod  <behdad@gnome.org>
+
+	* ChangeLog.pre-1-20:
+	* Makefile.am:
+	Wrap ChangeLog.
+
+2008-04-21  Behdad Esfahbod  <behdad@gnome.org>
+
+	* docs/pango-docs.sgml:
+	* docs/pango-sections.txt:
+	* docs/tmpl/bidi.sgml:
+	* docs/tmpl/main.sgml:
+	* docs/tmpl/vertical.sgml:
+	* pango/pango-bidi-type.c (pango_log2vis_get_embedding_levels),
+	(pango_unichar_direction), (pango_get_mirror_char):
+	* pango/pango-bidi-type.h:
+	* pango/pango-types.h:
+	* pango/pango-utils.c:
+	Group bidi stuff together.  Add a section in the docs for them.
+
+2008-04-21  Behdad Esfahbod  <behdad@gnome.org>
+
+	Bug 515432 – Add function to get bidirectional character type of a
+	unicode character
+	Patch from Jürg Billeter
+
+	* docs/pango-sections.txt:
+	* docs/tmpl/layout.sgml:
+	* docs/tmpl/main.sgml:
+	* docs/tmpl/pangocairo.sgml:
+	* pango/Makefile.am:
+	* pango/pango-bidi-type.c (pango_bidi_type_for_unichar):
+	* pango/pango-bidi-type.h:
+	* pango/pango-types.h:
+	* pango/pango-utils.c (pango_log2vis_get_embedding_levels),
+	(pango_unichar_direction):
+	* pango/pango.def:
+	* pango/pango.h:
+	New public API:
+
+		enum PangoBidiType;
+		pango_bidi_type_get_type()
+		pango_bidi_type_for_unichar()
+
+2008-04-21  Behdad Esfahbod  <behdad@gnome.org>
+
+	Bug 517119 – Add pango_cairo_create_context()
+
+	* docs/pango-sections.txt:
+	* pango/pangocairo-context.c (pango_cairo_create_context),
+	(pango_cairo_create_layout):
+	* pango/pangocairo.def:
+	* pango/pangocairo.h:
+	New public API:
+
+		pango_cairo_create_context()
+
+2008-04-21  Behdad Esfahbod  <behdad@gnome.org>
+
+	Bug 404416 – pango_layout_get_baseline or something
+
+	* docs/pango-sections.txt:
+	* pango/pango-layout.c (pango_layout_get_baseline):
+	* pango/pango-layout.h:
+	* pango/pango.def:
+	New public API:
+
+		pango_layout_get_baseline()
+
+2008-04-21  Behdad Esfahbod  <behdad@gnome.org>
+
+	Bug 474706 – cairo hexbox looks ugly
+
+	* pango/pangocairo-font.c
+	(_pango_cairo_font_private_get_hex_box_info):
+	Tweak minifont size a bit.  Also propagate font options correctly.
+
+2008-04-21  Behdad Esfahbod  <behdad@gnome.org>
+
+	Bug 490669 – add some <span> attribute aliases
+
+	* docs/pango_markup.sgml:
+	* pango/pango-markup.c (span_parse_func):
+	Add fgcolor, bgcolor, font, font_size, font_weight, font_variant, ...
+
+2008-04-21  Behdad Esfahbod  <behdad@gnome.org>
+
+	Bug 501334 – Make pango_cairo_[show_]*[_path]() functions preserve
+	current point
+
+	* pango/pangocairo-render.c (_pango_cairo_renderer_draw_box_glyph),
+	(_pango_cairo_renderer_draw_unknown_glyph), (acquire_renderer),
+	(release_renderer), (save_current_point), (restore_current_point),
+	(_pango_cairo_do_glyph_string), (_pango_cairo_do_layout_line),
+	(_pango_cairo_do_layout):
+	Preserve current point around pango_cairo_* functions().
+
+2008-04-21  Behdad Esfahbod  <behdad@gnome.org>
+
+	* configure.in:
+	* pango/pangocairo-atsui.h:
+	* pango/pangocairo-atsuifont.c
+	(pango_cairo_atsui_font_create_font_face):
+	* pango/pangocairo-fontmap.c
+	(pango_cairo_font_map_new_for_font_type):
+	Require cairo >= 1.6.4.  Remove compat cruft that were added to
+	support older cairo that had cairo-atsui instead of cairo-quartz-font.
+
+2008-04-21  Behdad Esfahbod  <behdad@gnome.org>
+
+	Bug 514617 – Add pango_cairo_font_map_set_default()
+
+	* docs/pango-sections.txt:
+	* docs/tmpl/pangocairo.sgml:
+	* pango/pangocairo-fontmap.c (pango_cairo_font_map_get_default),
+	(pango_cairo_font_map_set_default):
+	* pango/pangocairo.def:
+	* pango/pangocairo.h:
+	New public API:
+
+		pango_cairo_font_map_set_default()
+
+2008-04-21  Behdad Esfahbod  <behdad@gnome.org>
+
+	* docs/pango-docs.sgml: Add index of new API in 1.22.
+
+2008-04-21  Behdad Esfahbod  <behdad@gnome.org>
+
+	Bug 511183 – Add pango_attr_type_get_name()
+
+	* docs/pango-sections.txt:
+	* docs/tmpl/text-attributes.sgml:
+	* pango/pango-attributes.c (pango_attr_type_register),
+	(pango_attr_type_get_name):
+	* pango/pango-attributes.h:
+	* pango/pango.def:
+	New public API:
+	
+		pango_attr_type_get_name()
+
+2008-04-20  Behdad Esfahbod  <behdad@gnome.org>
+
+	* pango/pango-ot-info.c (pango_ot_info_get_gdef),
+	(pango_ot_info_get_gsub), (pango_ot_info_get_gpos):
+	Write out HarfBuzz errors as hex.
+
+2008-04-09  Behdad Esfahbod  <behdad@gnome.org>
+
+	* === Released 1.20.2 ===
+
+	* configure.in: Version 1.20.2
+
+	* NEWS: Updated.
+
+2008-04-09  Behdad Esfahbod  <behdad@gnome.org>
+
+	* pango/pangocairo-atsui.h:
+	* pango/pangocairo-atsuifont.c:
+	Really fix build without cairo-atsui.
+
+2008-04-08  Behdad Esfahbod  <behdad@gnome.org>
+
+	* === Released 1.20.1 ===
+
+	* configure.in: Version 1.20.1
+
+	* NEWS: Updated.
+
+2008-04-08  Behdad Esfahbod  <behdad@gnome.org>
+
+	Bug 491553 – Update to Unicode 5.1.0
+
+	* docs/tmpl/scripts.sgml:
+	* pango/mini-fribidi/README:
+	* pango/mini-fribidi/fribidi_tab_char_type_2.i:
+	* pango/pango-script-lang-table.h:
+	* pango/pango-script.h:
+	Update to Unicode Character Databse 5.1.0.  This adds new entries to
+	the PangoScript enum.  Requires glib >= 2.16.3 for the update Unicode
+	data there, but not bumping the requirement in a stable point release.
+
+2008-04-08  Behdad Esfahbod  <behdad@gnome.org>
+
+	* configure.in:
+	* pango/pangocairo-atsui.h:
+	* pango/pangocairo-atsuifont.c:
+	Try making our OS X stuff compile with latest cairo 1.5.x snapshots
+	that renamed cairo-atsui to cairo-quartz-font.
+
+2008-04-08  Behdad Esfahbod  <behdad@gnome.org>
+
+	* configure.in: Fix check for Carbon/Carbon.h availability.  Oops!
+
+2008-03-21  Behdad Esfahbod  <behdad@gnome.org>
+
+	* pango/pango-layout.c (get_x_offset): When doing ALIGN_CENTER,
+	round line offset to whole pixel if hinting.
+
+2008-03-11  Richard Hult  <richard@imendio.com>
+
+	* pango/pangocairo-atsuifont.c (_pango_cairo_atsui_font_new):
+	Adapt the shear matrix for synthesized italic to work with cairo
+	1.5.13+, where the quartz surface has been fixed for transformed
+	text.
+
+Local Variables:
+coding: utf-8
+End:
+vim: encoding=utf-8:
